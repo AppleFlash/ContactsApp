@@ -60,9 +60,3 @@ Pods/
 ## xcov
 fastlane/xcov_report
 xcov_output
-
-
-## xcode projects
-
-*.xcodeproj
-*.xcworkspace
