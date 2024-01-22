@@ -149,6 +149,7 @@ final class PRSizeChecker {
         let sourceBranch = _danger.github.pullRequest.base.ref
         _danger.message("Source branch = \(sourceBranch)")
         let changedPbxproj = _getUpdatedLinesCount(in: .pbxproj, sourceBranch: sourceBranch)
+        let changedSwift = _getUpdatedLinesCount(in: .swift, sourceBranch: sourceBranch)
         let changedSnapshots = _getSnapshotChangedCount()
         let codeInserts = addedLinesCount - changedPbxproj - changedSnapshots
 
