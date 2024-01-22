@@ -174,7 +174,7 @@ final class PRSizeChecker {
                 do {
                     return try _danger.utils.diff(forFile: file, sourceBranch: sourceBranch).get()
                 } catch {
-                    _danger.warn("Не удалось получить diff для файла \(file). Ошибка: \(error)")
+                    print("Не удалось получить diff для файла \(file). Ошибка: \(error)")
                     return nil
                 }
             }

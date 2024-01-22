@@ -13,7 +13,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3.1.0
         with:
-          fetch-depth: 2
+          fetch-depth: 0
+      - name: PWD
+        run: pwd
       - name: Danger
         run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
         env:
