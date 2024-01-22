@@ -76,13 +76,10 @@ final class PRNamingChecker {
 
     func validatePR(branchName: String, prTitle: String) {
         if _isReleaseBranch(branchName) {
-            print("In release")
             _ensureReleasePRTitleValid(prTitle)
         } else if _isFeatureOrTestBranch(branchName) {
-            print("In feature")
             _ensureFeaturePRTitleValid(branchName: branchName, prTitle: prTitle)
         } else {
-            print("In else")
             let notReleaseBranches = Constants.notReleaseBranchPrefixes.joined(separator: " или ")
             _danger.fail("""
                 Если ветка начинается на \(notReleaseBranches), то далее должно быть \(_errorHintProjects).
@@ -144,43 +141,39 @@ final class PRSizeChecker {
     }
 
     func validatePRSize() {
-//        guard let addedLinesCount = danger.github.pullRequest.additions else {
-//            _danger.warn("Не удалось получить количество измененных строк из PR")
-//            return
-//        }
+        guard let addedLinesCount = danger.github.pullRequest.additions else {
+            _danger.warn("Не удалось получить количество измененных строк из PR")
+            return
+        }
 
         let sourceBranch = _danger.github.pullRequest.base.ref
-        print("source \(sourceBranch)")
+        _danger.message("Source branch = \(sourceBranch)")
         let changedPbxproj = _getUpdatedLinesCount(in: .pbxproj, sourceBranch: sourceBranch)
-        print("changes \(changedPbxproj)")
-//        let changedSnapshots = _getSnapshotChangedCount()
-//        let codeInserts = addedLinesCount - changedPbxproj - changedSnapshots
+        let changedSnapshots = _getSnapshotChangedCount()
+        let codeInserts = addedLinesCount - changedPbxproj - changedSnapshots
 
-//        _danger.message("""
-//        Размер PR:
-//        \(codeInserts) строк кода добавлено/обновлено
-//        \(changedPbxproj) строк в файлах .pbxproj добавлено/обновлено
-//        \(changedSnapshots) snapshot тестов добавлено/обновлено
-//        Всего: \(addedLinesCount)
-//        """)
-//        if codeInserts > Constants.errorSize {
-//            fail("Размер PR (\(codeInserts) строк кода) превышает максимальный размер (\(Constants.errorSize) строк).")
-//        } else if addedLinesCount > Constants.warningSize {
-//            warn("Размер PR (\(codeInserts) строк кода) превышает рекомендуемый размер (\(Constants.warningSize) строк).")
-//        }
+        _danger.message("""
+        Размер PR:
+        \(codeInserts) строк кода добавлено/обновлено;
+        \(changedPbxproj) строк в файлах .pbxproj добавлено/обновлено;
+        \(changedSnapshots) snapshot тестов добавлено/обновлено;
+        Всего: \(addedLinesCount)
+        """)
+        if codeInserts > Constants.errorSize {
+            fail("Размер PR (\(codeInserts) строк кода) превышает максимальный размер (\(Constants.errorSize) строк).")
+        } else if addedLinesCount > Constants.warningSize {
+            warn("Размер PR (\(codeInserts) строк кода) превышает рекомендуемый размер (\(Constants.warningSize) строк).")
+        }
     }
 
     private func _getUpdatedLinesCount(in fileType: FileType, sourceBranch: String) -> Int {
-        print("Changes = \(_danger.git.modifiedFiles + _danger.git.createdFiles)")
         return (_danger.git.modifiedFiles + _danger.git.createdFiles)
-//            .lazy
             .filter { $0.fileType == fileType }
             .compactMap { file in
-                print("iterate through file \(file)")
                 do {
                     return try _danger.utils.diff(forFile: file, sourceBranch: sourceBranch).get()
                 } catch {
-                    print("error in file \(file)")
+                    _danger.warn("Не удалось получить diff для файла \(file). Ошибка: \(error)")
                     return nil
                 }
             }
@@ -208,29 +201,29 @@ final class PRSizeChecker {
 }
 
 // MARK: - Main
-//guard let releasePatternValue = danger.utils.environment.releaseBranchPattern else {
-//    danger.fail("""
-//    Параметр "\(DangerKeys.releaseBranchKey)" обязателен.
-//    env:
-//        \(DangerKeys.releaseBranchKey): "release/(transport|avia|train|bus)-"
-//    """
-//    )
-//    exit(1)
-//}
-//guard case let .string(releasePattern) = releasePatternValue else {
-//    danger.fail(#"Параметр "\#(DangerKeys.releaseBranchKey)" должен быть строкой"#)
-//    exit(1)
-//}
+guard let releasePatternValue = danger.utils.environment.releaseBranchPattern else {
+    danger.fail("""
+    Параметр "\(DangerKeys.releaseBranchKey)" обязателен.
+    env:
+        \(DangerKeys.releaseBranchKey): "release/(transport|avia|train|bus)-"
+    """
+    )
+    exit(1)
+}
+guard case let .string(releasePattern) = releasePatternValue else {
+    danger.fail(#"Параметр "\#(DangerKeys.releaseBranchKey)" должен быть строкой"#)
+    exit(1)
+}
 
-//let prNameChecker = PRNamingChecker(danger: danger, releasePattern: releasePattern)
-//prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle: danger.github.pullRequest.title)
+let prNameChecker = PRNamingChecker(danger: danger, releasePattern: releasePattern)
+prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle: danger.github.pullRequest.title)
 
-//let prSizeChecker = PRSizeChecker(danger: danger)
-//prSizeChecker.validatePRSize()
+danger.message("PWD = \(try! danger.utils.spawn("pwd"))")
+danger.message("LS = \(try! danger.utils.spawn("ls -a"))")
 
-print("PWD = \(try! danger.utils.spawn("pwd"))")
-print("PWD = \(try! danger.utils.spawn("ls"))")
+let prSizeChecker = PRSizeChecker(danger: danger)
+prSizeChecker.validatePRSize()
 
-//if danger.github.pullRequest.body?.isEmpty == true {
-//    danger.warn("Отсутствует описание PR")
-//}
+if danger.github.pullRequest.body?.isEmpty == true {
+    danger.warn("Отсутствует описание PR")
+}
