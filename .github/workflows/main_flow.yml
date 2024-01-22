@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3.1.0
       - name: Danger
-        run: danger-swift ci -d Dangerfile.swift
+        run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
         env:
           DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DANGER_RELEASE_BRANCH_PATTERN: "release/(transport|avia|bus|train)-"
