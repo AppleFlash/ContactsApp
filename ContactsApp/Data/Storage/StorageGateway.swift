@@ -10,3 +10,5 @@ protocol StorageGateway: class {
     func store<T>(object: T, at key: String)
     func get<T>(for key: String) -> T?
 }
+
+
