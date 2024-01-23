@@ -221,8 +221,6 @@ prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle
 
 danger.message("PWD = \(try! danger.utils.spawn("pwd"))")
 danger.message("LS = \(try! danger.utils.spawn("ls -a"))")
-danger.message("Git status = \(try! danger.utils.spawn("git status"))")
-print("BRANCH = \(try! danger.utils.spawn("git branch"))")
 
 let prSizeChecker = PRSizeChecker(danger: danger)
 prSizeChecker.validatePRSize()
