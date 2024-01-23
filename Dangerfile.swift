@@ -181,12 +181,14 @@ final class PRSizeChecker {
             .reduce(0) { partialResult, file in
                 switch file.changes {
                 case let .created(lines):
+                    print("DEBUG: Новый файл \(file)")
                     return partialResult + lines.count
                 case let .modified(hunks):
                     let added = hunks
                         .reduce(0) {
                             $0 + $1.lines.filter { line in line.description.hasPrefix("+") }.count
                         }
+                    print("DEBUG: Модифицированный файл \(file). Новых строк: \(added)")
                     return partialResult + added
                 default:
                     return partialResult
