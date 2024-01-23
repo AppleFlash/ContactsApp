@@ -19,7 +19,7 @@ jobs:
       # - name: Danger
       #   run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
       - name: Danger
-        uses: danger/swift@3.18.0
+        uses: docker://ghcr.io/danger/danger-swift:3.18.0
         with:
             args: --failOnErrors -dangerfile DangerFile.swift
         env:
