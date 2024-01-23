@@ -16,6 +16,8 @@ jobs:
         run: |
           URL=https://api.github.com/repos/$GITHUB_REPOSITORY/compare/$GITHUB_BASE_REF...$GITHUB_HEAD_REF
           curl -H "Accept: application/vnd.github.v3.diff" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $URL > diff.txt
+      - name: Prepare Dangerfile
+        run: cp -f vender/Dangerfile.swift Dangerfile.swift
       - name: Danger
         uses: docker://ghcr.io/danger/danger-swift:3.18.0
         with:
