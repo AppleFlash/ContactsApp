@@ -1,0 +1,12 @@
+name: Upload app's dSYMs
+
+on:
+  workflow_call:
+
+jobs:
+  deploy_dsyms:
+    runs-on: self-hosted
+    steps:
+    - name: Deploy dSYMs
+      run: |
+        echo "Run "

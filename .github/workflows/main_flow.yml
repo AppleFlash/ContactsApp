@@ -1,0 +1,32 @@
+name: Run Pull Request flow
+
+on:
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: github.event_name  == 'pull_request'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3.1.0
+      - name: Create file
+        run: |
+          URL=https://api.github.com/repos/$GITHUB_REPOSITORY/compare/$GITHUB_BASE_REF...$GITHUB_HEAD_REF
+          curl -H "Accept: application/vnd.github.v3.diff" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $URL > diff.txt
+      - name: Prepare Dangerfile
+        run: cp -f vendor/Dangerfile.swift Dangerfile.swift
+      - name: Danger
+        uses: docker://ghcr.io/danger/danger-swift:3.18.0
+        with:
+            args: --failOnErrors -dangerfile vendor/DangerFile.swift
+        env:
+          DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DANGER_RELEASE_BRANCH_PATTERN: "release/(transport|avia|bus|train)-"
+          DANGER_DIFF_FILE: "diff.txt"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - if: always()
+        name: Post
+        run: rm diff.txt

@@ -1,0 +1,33 @@
+name: Run Xcode tests
+
+on:
+  workflow_call:
+    outputs:
+      isDSYMsReady:
+        value: ${{ jobs.run_xcode_tests.outputs.isReady }}
+
+env:
+  BRANCH_FROM: "origin/${{github.head_ref}}"
+  BRANCH_TO: "origin/${{github.base_ref}}"
+
+jobs:
+  run_xcode_tests:
+    outputs:
+      isReady: ${{ steps.prepareDsyms.outputs.isReady }}
+    runs-on: self-hosted
+    steps:
+    - if: inputs.store_dsym
+      name: Prepare dSYMs
+      id: prepareDsyms
+      run: |
+        echo "isReady=true" >> "$GITHUB_OUTPUT"
+    - name: Test log
+      run: echo "store dsym  ${{ inputs.store_dsym }}, is ready = ${{ steps.prepareDsyms.outputs.isReady }}"
+
+    - if: ${{ (inputs.store_dsym == true) && (steps.prepareDsyms.outputs.isReady == true) }}
+      name: Save dSYMs
+      run: echo "Done"
+      # with:
+      #   name: dSYMs
+      #   path: dSYMs.zip
+      #   retention-days: 1
