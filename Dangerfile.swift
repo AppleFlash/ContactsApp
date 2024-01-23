@@ -221,9 +221,6 @@ guard case let .string(releasePattern) = releasePatternValue else {
 let prNameChecker = PRNamingChecker(danger: danger, releasePattern: releasePattern)
 prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle: danger.github.pullRequest.title)
 
-danger.message("PWD = \(try! danger.utils.spawn("pwd"))")
-danger.message("LS = \(try! danger.utils.spawn("ls -a"))")
-
 let prSizeChecker = PRSizeChecker(danger: danger)
 prSizeChecker.validatePRSize()
 
