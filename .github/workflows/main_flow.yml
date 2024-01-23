@@ -16,8 +16,12 @@ jobs:
           fetch-depth: 0
       - name: PWD
         run: pwd
+      # - name: Danger
+      #   run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
       - name: Danger
-        run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
+        uses: danger/swift@3.18.0
+        with:
+            args: --failOnErrors -dangerfile DangerFile.swift
         env:
           DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DANGER_RELEASE_BRANCH_PATTERN: "release/(transport|avia|bus|train)-"
