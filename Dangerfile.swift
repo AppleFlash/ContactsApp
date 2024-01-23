@@ -5,6 +5,155 @@ let danger = Danger()
 
 // MARK: - Helpers
 
+// NOTE: Временное решение.
+// Из-за сложностей применение команд `git ...` на облачных раннерах GitHub CI не удаётся использовать
+// встроенные в danger-swift функции получения диффа. Решение взято отсюда
+// https://github.com/tutu-ru-mobile/TutuGraphTool/blob/main/Sources/SharedComponents/Tools/GitDiffParser.swift
+// После переезда на собственную ферму подход будет пересмотрен
+struct FileDiff: Hashable {
+    let oldPath: String?
+    let newPath: String?
+    let diffType: FileDiffType
+    let addedLines: [String]
+    let deletedLines: [String]
+
+    enum FileDiffType: String {
+        case created
+        case changed
+        case deleted
+    }
+}
+
+extension FileDiff: CustomDebugStringConvertible {
+    var debugDescription: String {
+        return """
+        oldPath: \(oldPath?.debugDescription ?? "nil"),
+        newPath: \(newPath?.debugDescription ?? "nil"),
+        diffType: \(diffType),
+        addedLinesCount: \(addedLines.count),
+        deletedLinesCount: \(deletedLines.count),
+        """
+    }
+}
+
+enum GitDiffParser {
+    enum Errors: Error, CustomStringConvertible {
+        case unexpectedBehaviour(String? = nil)
+
+        var description: String {
+            let commonMessage = "Looks like either an error exists in parsing algorithm or parsed diff is invalid."
+            switch self {
+            case let .unexpectedBehaviour(description):
+                return description.map { commonMessage + " " + $0 } ?? commonMessage
+            }
+        }
+    }
+
+    static func parse(_ diff: String) throws -> [FileDiff] {
+        let lines = diff.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+
+        let diffChangedFilePathRegex = try NSRegularExpression(
+            pattern: #"^diff --git (a\/.+) (b\/.+)$"#
+        )
+
+        let binaryFilesDifferPathsRegex = try NSRegularExpression(
+            pattern: #"^Binary files (.+) and (.+) differ$"#
+        )
+
+        var oldPath: String?
+        var newPath: String?
+        var addedLines: [String] = []
+        var deletedLines: [String] = []
+
+        var results: [FileDiff] = []
+
+        func parsePath<T: StringProtocol>(from string: T) -> String? {
+            if string == "/dev/null" { return nil }
+            return String(string.dropFirst(2))
+        }
+
+        func cleanModifiedLine(_ line: String.SubSequence) -> String {
+            guard line.first == "+" || line.first == "-" else { return String(line) }
+            return line.dropFirst(1).trimmingCharacters(in: .whitespaces)
+        }
+
+        func finishDiffHunkParsing() {
+            if oldPath != nil || newPath != nil {
+                let diffType: FileDiff.FileDiffType
+                if oldPath == nil {
+                    diffType = .created
+                } else if newPath == nil {
+                    diffType = .deleted
+                } else {
+                    diffType = .changed
+                }
+
+                results.append(
+                    FileDiff(
+                        oldPath: oldPath,
+                        newPath: newPath,
+                        diffType: diffType,
+                        addedLines: addedLines,
+                        deletedLines: deletedLines
+                    )
+                )
+            }
+
+            oldPath = nil
+            newPath = nil
+            addedLines = []
+            deletedLines = []
+        }
+
+        for line in lines {
+            let firstWord = line.split(separator: " ", omittingEmptySubsequences: false).first
+
+            switch firstWord {
+            case "diff":
+                finishDiffHunkParsing()
+                if let groups = diffChangedFilePathRegex.firstMatchGroups(in: String(line)) {
+                    oldPath = parsePath(from: groups[1])
+                    newPath = parsePath(from: groups[2])
+                }
+
+            case "---":
+                oldPath = parsePath(from: line.dropFirst(4))
+
+            case "+++":
+                newPath = parsePath(from: line.dropFirst(4))
+
+            case "\\":
+                if line == "\\ No newline at end of file" {
+                } else {
+                    throw Errors.unexpectedBehaviour("unexpected diff line: \(String(line))")
+                }
+
+            case "Binary":
+                if let groups = binaryFilesDifferPathsRegex.firstMatchGroups(in: String(line)) {
+                    oldPath = parsePath(from: groups[1])
+                    newPath = parsePath(from: groups[2])
+                } else {
+                    throw Errors.unexpectedBehaviour("unexpected diff line: \(String(line))")
+                }
+
+            default:
+                switch line.first {
+                case "+":
+                    addedLines.append(cleanModifiedLine(line))
+                case "-":
+                    deletedLines.append(cleanModifiedLine(line))
+                default:
+                    break
+                }
+            }
+        }
+
+        finishDiffHunkParsing()
+
+        return results
+    }
+}
+
 extension NSRegularExpression {
     func hasMatch(in text: String) -> Bool {
         matchesGroups(in: text).first?.isEmpty == false
@@ -12,6 +161,10 @@ extension NSRegularExpression {
 
     func firstMatch(in text: String) -> Substring? {
         matchesGroups(in: text).first?.first
+    }
+
+    func firstMatchGroups(in text: String) -> [Substring]? {
+        matchesGroups(in: text).first
     }
 
     func matchesGroups(in text: String) -> [[Substring]] {
@@ -135,9 +288,12 @@ final class PRSizeChecker {
     }
 
     private let _danger: DangerDSL
+    private let _diffContent: String
+    private lazy var _parsedDiffFiles = catchError { try GitDiffParser.parse(_diffContent) }
 
-    init(danger: DangerDSL) {
+    init(danger: DangerDSL, diffContent: String) {
         _danger = danger
+        _diffContent = diffContent
     }
 
     func validatePRSize() {
@@ -146,10 +302,8 @@ final class PRSizeChecker {
             return
         }
 
-        let sourceBranch = "origin/" + _danger.github.pullRequest.base.ref
-        _danger.message("Source branch = \(sourceBranch)")
-        let changedPbxproj = _getUpdatedLinesCount(in: .pbxproj, sourceBranch: sourceBranch)
-        let changedSwift = _getUpdatedLinesCount(in: .swift, sourceBranch: sourceBranch)
+        let changedPbxproj = _getUpdatedLinesCount(in: .pbxproj)
+        let changedSwift = _getUpdatedLinesCount(in: .swift)
         let changedSnapshots = _getSnapshotChangedCount()
         let codeInserts = addedLinesCount - changedPbxproj - changedSnapshots
 
@@ -167,32 +321,13 @@ final class PRSizeChecker {
         }
     }
 
-    private func _getUpdatedLinesCount(in fileType: FileType, sourceBranch: String) -> Int {
-        return (_danger.git.modifiedFiles + _danger.git.createdFiles)
-            .filter { $0.fileType == fileType }
-            .compactMap { file in
-                do {
-                    return try _danger.utils.diff(forFile: file, sourceBranch: sourceBranch).get()
-                } catch {
-                    print("Не удалось получить diff для файла \(file). Ошибка: \(error)")
-                    return nil
-                }
-            }
-            .reduce(0) { partialResult, file in
-                switch file.changes {
-                case let .created(lines):
-                    print("DEBUG: Новый файл \(file)")
-                    return partialResult + lines.count
-                case let .modified(hunks):
-                    let added = hunks
-                        .reduce(0) {
-                            $0 + $1.lines.filter { line in line.description.hasPrefix("+") }.count
-                        }
-                    print("DEBUG: Модифицированный файл \(file). Новых строк: \(added)")
-                    return partialResult + added
-                default:
-                    return partialResult
-                }
+    private func _getUpdatedLinesCount(in fileType: FileType) -> Int {
+        _parsedDiffFiles
+            .lazy
+            .filter { $0.diffType == .changed || $0.diffType == .created }
+            .filter { ($0.newPath ?? $0.oldPath)?.fileType == fileType }
+            .reduce(0) { partialResult, fileDiff in
+                return partialResult + fileDiff.addedLines.count
             }
     }
 
@@ -203,7 +338,7 @@ final class PRSizeChecker {
     }
 }
 
-// MARK: - Main
+// MARK: - Check naming
 guard let releasePatternValue = danger.utils.environment.releaseBranchPattern else {
     danger.fail("""
     Параметр "\(DangerKeys.releaseBranchKey)" обязателен.
@@ -218,16 +353,19 @@ guard case let .string(releasePattern) = releasePatternValue else {
     exit(1)
 }
 
-let file = danger.utils.environment.diffFile.getString(default: "WRONG")
-let content = danger.utils.readFile(file)
-print("Readed file \(file), content: \(content)")
-
 let prNameChecker = PRNamingChecker(danger: danger, releasePattern: releasePattern)
 prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle: danger.github.pullRequest.title)
 
-let prSizeChecker = PRSizeChecker(danger: danger)
-prSizeChecker.validatePRSize()
+// MARK: - Check PR size
+if case let .string(diffFileName) = danger.utils.environment.diffFile {
+    let content = danger.utils.readFile(diffFileName)
+    let prSizeChecker = PRSizeChecker(danger: danger, diffContent: content)
+    prSizeChecker.validatePRSize()
+} else {
+    danger.warn("Размер PR не может быть определен. Файл с diff контентом не установлен")
+}
 
+// MARK: - Check PR description
 if danger.github.pullRequest.body?.isEmpty == true {
     danger.warn("Отсутствует описание PR")
 }

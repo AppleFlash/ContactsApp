@@ -12,12 +12,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3.1.0
-        with:
-          fetch-depth: 0
-      - name: PWD
-        run: git branch -r
-      # - name: Danger
-      #   run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
       - name: Create file
         run: |
           URL=https://api.github.com/repos/$GITHUB_REPOSITORY/compare/$GITHUB_BASE_REF...$GITHUB_HEAD_REF
@@ -29,5 +23,8 @@ jobs:
         env:
           DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DANGER_RELEASE_BRANCH_PATTERN: "release/(transport|avia|bus|train)-"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DANGER_DIFF_FILE: "diff.txt"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - if: always()
+        name: Post
+        run: rm diff.txt
