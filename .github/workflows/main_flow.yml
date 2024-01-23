@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: PWD
-        run: pwd
+        run: git status
       # - name: Danger
       #   run: /opt/homebrew/bin/danger-swift ci -d Dangerfile.swift
       - name: Danger
