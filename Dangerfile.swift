@@ -218,6 +218,10 @@ guard case let .string(releasePattern) = releasePatternValue else {
     exit(1)
 }
 
+let file = danger.utils.environment.diffFile.getString(default: "WRONG")
+let content = danger.utils.readFile(file)
+print("Readed file \(file), content: \(content)")
+
 let prNameChecker = PRNamingChecker(danger: danger, releasePattern: releasePattern)
 prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle: danger.github.pullRequest.title)
 
