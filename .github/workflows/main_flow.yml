@@ -25,3 +25,4 @@ jobs:
         env:
           DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DANGER_RELEASE_BRANCH_PATTERN: "release/(transport|avia|bus|train)-"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
