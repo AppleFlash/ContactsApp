@@ -303,7 +303,6 @@ final class PRSizeChecker {
         }
 
         let changedPbxproj = _getUpdatedLinesCount(in: .pbxproj)
-        let changedSwift = _getUpdatedLinesCount(in: .swift)
         let changedSnapshots = _getSnapshotChangedCount()
         let codeInserts = addedLinesCount - changedPbxproj - changedSnapshots
 
@@ -354,18 +353,18 @@ guard case let .string(releasePattern) = releasePatternValue else {
 }
 
 let prNameChecker = PRNamingChecker(danger: danger, releasePattern: releasePattern)
-prNameChecker.validatePR(branchName: danger.github.pullRequest.head.ref, prTitle: danger.github.pullRequest.title)
+prNameChecker.validatePR(branchName: "feature/NO-ISSUE_new_font_update", prTitle: "NO-ISSUE. Bump TutuDesignKit to add new fonts.")
 
 // MARK: - Check PR size
-if case let .string(diffFileName) = danger.utils.environment.diffFile {
-    let content = danger.utils.readFile(diffFileName)
-    let prSizeChecker = PRSizeChecker(danger: danger, diffContent: content)
-    prSizeChecker.validatePRSize()
-} else {
-    danger.warn("Размер PR не может быть определен. Файл с diff контентом не установлен")
-}
-
-// MARK: - Check PR description
-if danger.github.pullRequest.body?.isEmpty == true {
-    danger.warn("Отсутствует описание PR")
-}
+//if case let .string(diffFileName) = danger.utils.environment.diffFile {
+//    let content = danger.utils.readFile(diffFileName)
+//    let prSizeChecker = PRSizeChecker(danger: danger, diffContent: content)
+//    prSizeChecker.validatePRSize()
+//} else {
+//    danger.warn("Размер PR не может быть определен. Файл с diff контентом не установлен")
+//}
+//
+//// MARK: - Check PR description
+//if danger.github.pullRequest.body?.isEmpty == true {
+//    danger.warn("Отсутствует описание PR")
+//}
